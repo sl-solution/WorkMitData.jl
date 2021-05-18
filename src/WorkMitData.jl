@@ -40,7 +40,7 @@ export
 	row_maximum,
 	row_var,
 	row_std,
-	row_stdze,
+	row_stdze!,
 	# from reshape.jl
 	t_function
 
