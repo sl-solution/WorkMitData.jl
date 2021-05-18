@@ -32,6 +32,8 @@ export
 	k_smallest,
 	# from extra_df.jl
 	std_names!,
+	row_sum,
+	row_mean,
 	# from reshape.jl
 	t_function
 
