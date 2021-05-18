@@ -4,32 +4,6 @@
 std_names!(df::DataFrame) = rename!(df, Dict(names(df) .=> replace.(names(df), r"[^a-z_0-9]"i => "_")))
 
 
-_add_sum(x, y) = Base.add_sum(x, y)
-_add_sum(x, ::Missing) = x
-_add_sum(::Missing, x) = x
-_add_sum(::Missing, ::Missing) = missing
-
-
-
-function row_sum(f, df::AbstractDataFrame, cols = :)
-    colsidx = DataFrames.index(df)[cols]
-    T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
-    _op_for_sum!(x, y) = x .= _add_sum.(x, f.(y))
-    # TODO the type of zeros after applying f???
-    mapreduce(identity, _op_for_sum!, eachcol(df)[colsidx], init = zeros(T, nrow(df)))
-end
-row_sum(df::AbstractDataFrame, cols = :) = row_sum(identity, df, cols)
-
-function row_mean(f, df::AbstractDataFrame, cols = :)
-    colsidx = DataFrames.index(df)[cols]
-    T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
-    _op_for_mean!(x, y) = (x[1] .= _add_sum.(x[1], f.(y)), x[2] .+= .!ismissing.(f.(y)))
-    # TODO the type of zeros after applying f???
-    rr = mapreduce(identity, _op_for_mean!, eachcol(df)[colsidx], init = (zeros(T, nrow(df)), zeros(Int32, nrow(df))))
-    rr[1] ./ rr[2]
-end
-row_mean(df::AbstractDataFrame, cols = :) = row_mean(identity, df, cols)
-
 # function _insertion_phase!(x, newval, i)
 #     endpos = x[1][i]
 #     if endpos == 2
