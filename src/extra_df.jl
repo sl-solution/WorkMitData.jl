@@ -8,21 +8,24 @@ _add_sum(x, y) = Base.add_sum(x, y)
 _add_sum(x, ::Missing) = x
 _add_sum(::Missing, x) = x
 _add_sum(::Missing, ::Missing) = missing
-_op_for_sum!(x, y) = x .= _add_sum.(x, y)
-_op_for_mean!(x, y) = (x[1] .= _add_sum.(x[1], y), x[2] .+= .!ismissing.(y))
+
+
 
 function row_sum(f, df::AbstractDataFrame, cols = :)
     colsidx = DataFrames.index(df)[cols]
     T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
-
-    mapreduce(f, _op_for_sum!, eachcol(df)[colsidx], init = zeros(T, nrow(df)))
+    _op_for_sum!(x, y) = x .= _add_sum.(x, f.(y))
+    # TODO the type of zeros after applying f???
+    mapreduce(identity, _op_for_sum!, eachcol(df)[colsidx], init = zeros(T, nrow(df)))
 end
 row_sum(df::AbstractDataFrame, cols = :) = row_sum(identity, df, cols)
 
 function row_mean(f, df::AbstractDataFrame, cols = :)
     colsidx = DataFrames.index(df)[cols]
     T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
-    rr = mapreduce(f, _op_for_mean!, eachcol(df)[colsidx], init = (zeros(T, nrow(df)), zeros(Int32, nrow(df))))
+    _op_for_mean!(x, y) = (x[1] .= _add_sum.(x[1], f.(y)), x[2] .+= .!ismissing.(f.(y)))
+    # TODO the type of zeros after applying f???
+    rr = mapreduce(identity, _op_for_mean!, eachcol(df)[colsidx], init = (zeros(T, nrow(df)), zeros(Int32, nrow(df))))
     rr[1] ./ rr[2]
 end
 row_mean(df::AbstractDataFrame, cols = :) = row_mean(identity, df, cols)
