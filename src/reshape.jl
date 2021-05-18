@@ -145,9 +145,8 @@ end
 function _fill_row_names!(res, row_names, ntimes)
     n = length(row_names)
     for i in 1:ntimes
-        @views copy!(res[(i-1)*n+1:i*n], row_names)
+        copy!(res.refs[(i-1)*n+1:i*n], row_names.refs)
     end
-    res
 end
 
 function _fill_gcol!(res, df, gcolindex, colsidx)
@@ -177,8 +176,8 @@ function fast_stack(T, df, in_cols, colsidx, gcolsidx, colid, row_names, variabl
     df1 = DataFrame(g_array, DataFrames._names(df)[gcolsidx], copycols = false)
 
     # construct variable names column
-    _repeat_row_names = similar(row_names, nrow(df)*length(colsidx))
-    _fill_row_names!(_repeat_row_names, row_names, nrow(df))
+    _repeat_row_names = repeat(row_names, outer = nrow(df))
+    # _fill_row_names!(_repeat_row_names, row_names, nrow(df))
     new_var_label = Symbol(variable_name)
     insertcols!(df1, new_var_label => _repeat_row_names, copycols = false)
 
@@ -303,7 +302,7 @@ function t_function(df::AbstractDataFrame, cols::DataFrames.MultiColumnIndex, gc
         end
         # fast_stack path, while keeping the row order consistent
         if need_fast_stack
-            return fast_stack(T, df, in_cols, colsidx, gcolsidx, renamecolid(1), renamerowid.(names(df, colsidx)), variable_name)
+            return fast_stack(T, df, in_cols, colsidx, gcolsidx, renamecolid(1), PooledArray(renamerowid.(names(df, colsidx))), variable_name)
         end
 
         out_ncol = _obtain_maximum_groups_size(gridx, gdf.ngroups)
@@ -341,8 +340,8 @@ function t_function(df::AbstractDataFrame, cols::DataFrames.MultiColumnIndex, gc
     _fill_gcol!(g_array, view(df, rows_with_group_info, :), gcolsidx, colsidx)
     outdf = DataFrame(g_array, DataFrames._names(df)[gcolsidx], copycols = false)
     row_names = PooledArray(row_names)
-    _repeat_row_names = similar(row_names, gdf.ngroups*length(colsidx))
-    _fill_row_names!(_repeat_row_names, row_names, gdf.ngroups)
+    _repeat_row_names = repeat(row_names, gdf.ngroups)
+    # _fill_row_names!(_repeat_row_names, row_names, gdf.ngroups)
     insertcols!(outdf, new_var_label => _repeat_row_names, copycols = false)
 
     hcat(outdf, DataFrame(outputmat, new_col_names, copycols = false), copycols = false)
