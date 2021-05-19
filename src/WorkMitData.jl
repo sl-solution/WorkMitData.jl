@@ -33,15 +33,17 @@ export
 	# from extra_df.jl
 	std_names!,
 	#from row_funcs.jl
-	row_sum,
-	row_mean,
-	row_count,
-	row_minimum,
-	row_maximum,
-	row_var,
-	row_std,
-	row_stdze!,
-	row_stdze,
+	# row_sum,
+	# row_mean,
+	# row_count,
+	# row_minimum,
+	# row_maximum,
+	# row_var,
+	# row_std,
+	# row_stdze!,
+	# row_stdze,
+	# row_sort!,
+	# row_sort,
 	# from reshape.jl
 	t_function
 

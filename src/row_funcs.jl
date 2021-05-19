@@ -11,7 +11,10 @@ _max_fun(x, ::Missing) = x
 _max_fun(::Missing, y) = y
 _max_fun(::Missing, ::Missing) = missing
 
-
+"""
+    row_sum([f = identity,] df::AbstractDataFrame[, cols])
+    computes the sum of non-missing values in each row of df[!, cols] after applying `f` on each value.
+"""
 function row_sum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
     T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
@@ -22,18 +25,30 @@ function row_sum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Numbe
 end
 row_sum(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_sum(identity, df, cols)
 
+"""
+    row_count(df::AbstractDataFrame[, cols])
+    counts the number of non-missing values in each row of df[!, cols].
+"""
 function row_count(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
     _op_for_count!(x, y) = x .+= .!ismissing.(y)
     mapreduce(identity, _op_for_count!, eachcol(df)[colsidx], init = zeros(Int32, nrow(df)))
 end
 
+"""
+    row_mean([f = identity,] df::AbstractDataFrame[, cols])
+    computes the mean of non-missing values in each row of df[!, cols] after applying `f` on each value.
+"""
 function row_mean(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     row_sum(f, df, cols) ./ row_count(df, cols)
 end
 row_mean(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_mean(identity, df, cols)
 
 # TODO not safe if the first column is Vector{Missing}
+"""
+    row_minimum([f = identity,] df::AbstractDataFrame[, cols])
+    finds the minimum of non-missing values in each row of df[!, cols] after applying `f` on each value.
+"""
 function row_minimum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
     T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
@@ -45,6 +60,10 @@ end
 row_minimum(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_minimum(identity, df, cols)
 
 # TODO not safe if the first column is Vector{Missing}
+"""
+    row_maximum([f = identity,] df::AbstractDataFrame[, cols])
+    finds the maximum of non-missing values in each row of df[!, cols] after applying `f` on each value.
+"""
 function row_maximum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
     T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
@@ -74,6 +93,10 @@ function _row_wise_var(ss, sval, n, dof, T)
 end
 
 # TODO needs type stability
+"""
+    row_var([f = identity,] df::AbstractDataFrame[, cols]; dof = true)
+    computes the variance of non-missing values in each row of df[!, cols] after applying `f` on each value.
+"""
 function row_var(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); dof = true)
     colsidx = DataFrames.index(df)[cols]
     T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
@@ -101,12 +124,19 @@ row_var(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); dof = t
 #     _row_wise_var(rr[1], rr[2], rr[3], dof, T)
 
 # end
-
+"""
+    row_std([f = identity,] df::AbstractDataFrame[, cols]; dof = true)
+    computes the standard deviation of non-missing values in each row of df[!, cols] after applying `f` on each value.
+"""
 function row_std(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); dof = true)
     sqrt.(row_var(f, df, cols, dof = dof))
 end
 row_std(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); dof = true) = row_std(identity, df, cols, dof = dof)
 
+"""
+    row_stdze!(df::AbstractDataFrame[, cols])
+    standardised the values within each row of df[!, cols], and replaces the old values.
+"""
 function row_stdze!(df::AbstractDataFrame , cols = names(df, Union{Missing, Number}))
     meandata = row_mean(df, cols)
     stddata = row_std(df, cols)
@@ -118,8 +148,36 @@ function row_stdze!(df::AbstractDataFrame , cols = names(df, Union{Missing, Numb
     end
 end
 
+"""
+    row_stdze(df::AbstractDataFrame[, cols])
+    standardised the values within each row of df[!, cols].
+"""
 function row_stdze(df::AbstractDataFrame , cols = names(df, Union{Missing, Number}))
     dfcopy = deepcopy(df)
     row_stdze!(dfcopy, cols)
+    dfcopy
+end
+
+"""
+    row_sort!(df::AbstractDataFrame[, cols]; kwargs...)
+    replace `cols` in each row with their sorted values.
+"""
+function row_sort!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); kwargs...)
+    colsidx = DataFrames.index(df)[cols]
+    T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
+    m = Matrix{T}(df[!, colsidx])
+    sort!(m; dims = 2, kwargs...)
+    for i in 1:length(colsidx)
+        getfield(df, :columns)[colsidx[i]] = m[:, i]
+    end
+end
+
+"""
+    row_sort!(df::AbstractDataFrame[, cols]; kwargs...)
+    sort `cols` in each row.
+"""
+function row_sort(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); kwargs...)
+    dfcopy = deepcopy(df)
+    row_sort!(dfcopy, cols; kwargs...)
     dfcopy
 end
