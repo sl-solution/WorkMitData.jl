@@ -2,6 +2,10 @@ _add_sum(x, y) = Base.add_sum(x, y)
 _add_sum(x, ::Missing) = x
 _add_sum(::Missing, x) = x
 _add_sum(::Missing, ::Missing) = missing
+_mul_prod(x, y) = Base.mul_prod(x, y)
+_mul_prod(x, ::Missing) = x
+_mul_prod(::Missing, x) = x
+_mul_prod(::Missing, ::Missing) = missing
 _min_fun(x, y) = min(x, y)
 _min_fun(x, ::Missing) = x
 _min_fun(::Missing, y) = y
@@ -11,36 +15,78 @@ _max_fun(x, ::Missing) = x
 _max_fun(::Missing, y) = y
 _max_fun(::Missing, ::Missing) = missing
 
+_bool(f) = x->f(x)::Bool
+
+struct _Prehashed
+    hash::UInt64
+end
+Base.hash(x::_Prehashed) = x.hash
+
 """
     row_sum([f = identity,] df::AbstractDataFrame[, cols])
     computes the sum of non-missing values in each row of df[!, cols] after applying `f` on each value.
 """
 function row_sum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
-    T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
+    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    T = typeof(f(zero(CT)))
+    if CT >: Missing
+        T = Union{Missing, T}
+    end
     _op_for_sum!(x, y) = x .= _add_sum.(x, f.(y))
-    # TODO the type of zeros after applying f???
     init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : zero(T))
-    mapreduce(identity, _op_for_sum!, eachcol(df)[colsidx], init = init0)
+    mapreduce(identity, _op_for_sum!, view(getfield(df, :columns),colsidx), init = init0)
 end
 row_sum(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_sum(identity, df, cols)
 
 """
-    row_count(df::AbstractDataFrame[, cols])
-    counts the number of non-missing values in each row of df[!, cols].
+    row_prod([f = identity,] df::AbstractDataFrame[, cols])
+    computes the product of non-missing values in each row of df[!, cols] after applying `f` on each value.
 """
-function row_count(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+function row_prod(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
-    _op_for_count!(x, y) = x .+= .!ismissing.(y)
-    mapreduce(identity, _op_for_count!, eachcol(df)[colsidx], init = zeros(Int32, nrow(df)))
+    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    T = typeof(f(zero(CT)))
+    if CT >: Missing
+        T = Union{Missing, T}
+    end
+    _op_for_prod!(x, y) = x .= _mul_prod.(x, f.(y))
+    init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : one(T))
+    mapreduce(identity, _op_for_prod!, view(getfield(df, :columns),colsidx), init = init0)
 end
+row_prod(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_prod(identity, df, cols)
+
+"""
+    row_count(f, df::AbstractDataFrame[, cols])
+    counts the number of non-missing values in each row of df[!, cols] for which the function `f` returns `true`.
+"""
+function row_count(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+    colsidx = DataFrames.index(df)[cols]
+    _op_for_count!(x, y) = x .+= (_bool(f).(y))
+    mapreduce(identity, _op_for_count!, view(getfield(df, :columns),colsidx), init = zeros(Int32, nrow(df)))
+end
+row_count(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_count(x->true, df, cols)
+
+"""
+    row_anymissing(df::AbstractDataFrame[, cols])
+    returns `true` or `false` wheather the row contains `missing` or no `missing`, respectively.
+"""
+function row_anymissing(df::AbstractDataFrame, cols = :)
+    colsidx = DataFrames.index(df)[cols]
+    # sel_colsidx = findall(x-> x >: Missing, eltype.(eachcol(df)[colsidx]))
+    _op_bool_add(x::Bool,y::Bool) = x || y ? true : false
+    op_for_anymissing!(x,y) = x .= _op_bool_add.(x, ismissing.(y))
+    # mapreduce(identity, op_for_anymissing!, eachcol(df)[colsidx[sel_colsidx]], init = zeros(Bool, nrow(df)))
+    mapreduce(identity, op_for_anymissing!, view(getfield(df, :columns),colsidx), init = zeros(Bool, nrow(df)))
+end
+
 
 """
     row_mean([f = identity,] df::AbstractDataFrame[, cols])
     computes the mean of non-missing values in each row of df[!, cols] after applying `f` on each value.
 """
 function row_mean(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
-    row_sum(f, df, cols) ./ row_count(df, cols)
+    row_sum(f, df, cols) ./ row_count(x -> !ismissing(x), df, cols)
 end
 row_mean(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_mean(identity, df, cols)
 
@@ -51,11 +97,14 @@ row_mean(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_
 """
 function row_minimum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
-    T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
+    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    T = typeof(f(zero(CT)))
+    if CT >: Missing
+        T = Union{Missing, T}
+    end
     _op_for_min!(x, y) = x .= _min_fun.(x, f.(y))
-    # TODO the type of zeros after applying f???
     init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : typemax(T))
-    mapreduce(identity, _op_for_min!, eachcol(df)[colsidx], init = init0)
+    mapreduce(identity, _op_for_min!, view(getfield(df, :columns),colsidx), init = init0)
 end
 row_minimum(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_minimum(identity, df, cols)
 
@@ -66,11 +115,15 @@ row_minimum(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = r
 """
 function row_maximum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
-    T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
+    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    T = typeof(f(zero(CT)))
+    if CT >: Missing
+        T = Union{Missing, T}
+    end
     _op_for_max!(x, y) = x .= _max_fun.(x, f.(y))
     # TODO the type of zeros after applying f???
     init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : typemin(T))
-    mapreduce(identity, _op_for_max!, eachcol(df)[colsidx], init = init0)
+    mapreduce(identity, _op_for_max!, view(getfield(df, :columns),colsidx), init = init0)
 end
 row_maximum(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_maximum(identity, df, cols)
 
@@ -99,11 +152,15 @@ end
 """
 function row_var(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); dof = true)
     colsidx = DataFrames.index(df)[cols]
-    T = mapreduce(eltype, promote_type, eachcol(df)[colsidx])
+    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    T = typeof(f(zero(CT)))
+    if CT >: Missing
+        T = Union{Missing, T}
+    end
     _sq_(x) = x^2
     ss = row_sum(_sq_ ∘ f, df, cols)
     sval = row_sum(f, df, cols)
-    n = row_count(df, cols)
+    n = row_count(x -> !ismissing(x), df, cols)
     res = ss ./ n .- (sval ./ n) .^ 2
     if dof
         res .= (n .* res) ./ (n .- 1)
@@ -181,3 +238,44 @@ function row_sort(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}
     row_sort!(dfcopy, cols; kwargs...)
     dfcopy
 end
+
+# TODO is it possible to have a faster row_count_unique??
+function _fill_prehashed!(prehashed, y, f, n, j)
+    @views copy!(prehashed[:, j] , _Prehashed.(hash.(f.(y))))
+end
+
+function _fill_dict_and_add!(init0, dict, prehashed, n, p)
+    for i in 1:n
+        for j in 1:p
+            if !haskey(dict, prehashed[i, j])
+                get!(dict, prehashed[i, j], nothing)
+                init0[i] += 1
+            end
+        end
+        empty!(dict)
+    end
+end
+
+"""
+    row_count_unique([f = identity,] df::AbstractDataFrame[, cols]; count_missing = true)
+    count the number of unique values in each row of df[!, cols] after applying `f` on each value. If `count_missing = false`, `missing` are not counted.
+"""
+function row_count_unique(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); count_missing = true)
+    colsidx = DataFrames.index(df)[cols]
+    prehashed = Matrix{_Prehashed}(undef, nrow(df), length(colsidx))
+    allcols = view(getfield(df, :columns),colsidx)
+
+    for j in 1:size(prehashed,2)
+        _fill_prehashed!(prehashed, allcols[j], f, nrow(df), j)
+    end
+
+    init0 = zeros(Int32, nrow(df))
+    dict = Dict{_Prehashed, Nothing}()
+    _fill_dict_and_add!(init0, dict, prehashed, nrow(df), length(colsidx))
+    if count_missing
+        return init0
+    else
+        return init0 .- row_anymissing(df, cols)
+    end
+end
+row_count_unique(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); count_missing = true) = row_count_unique(identity, df, cols; count_missing = count_missing)
