@@ -257,10 +257,10 @@ function _fill_dict_and_add!(init0, dict, prehashed, n, p)
 end
 
 """
-    row_count_unique([f = identity,] df::AbstractDataFrame[, cols]; count_missing = true)
+    row_nunique([f = identity,] df::AbstractDataFrame[, cols]; count_missing = true)
     count the number of unique values in each row of df[!, cols] after applying `f` on each value. If `count_missing = false`, `missing` are not counted.
 """
-function row_count_unique(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); count_missing = true)
+function row_nunique(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); count_missing = true)
     colsidx = DataFrames.index(df)[cols]
     prehashed = Matrix{_Prehashed}(undef, nrow(df), length(colsidx))
     allcols = view(getfield(df, :columns),colsidx)
@@ -278,4 +278,4 @@ function row_count_unique(f, df::AbstractDataFrame, cols = names(df, Union{Missi
         return init0 .- row_anymissing(df, cols)
     end
 end
-row_count_unique(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); count_missing = true) = row_count_unique(identity, df, cols; count_missing = count_missing)
+row_nunique(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); count_missing = true) = row_nunique(identity, df, cols; count_missing = count_missing)
