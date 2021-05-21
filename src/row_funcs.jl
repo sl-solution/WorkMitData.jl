@@ -98,7 +98,7 @@ row_mean(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_
 function row_minimum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
     CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
-    T = typeof(f(zero(CT)))
+    T = typeof(f(zeros(CT)[1]))
     if CT >: Missing
         T = Union{Missing, T}
     end
@@ -116,7 +116,7 @@ row_minimum(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = r
 function row_maximum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
     CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
-    T = typeof(f(zero(CT)))
+    T = typeof(f(zeros(CT)[1]))
     if CT >: Missing
         T = Union{Missing, T}
     end
