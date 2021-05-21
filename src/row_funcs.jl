@@ -307,7 +307,7 @@ byrow(::typeof(var), df::AbstractDataFrame, cols = names(df, Union{Missing, Numb
 
 byrow(::typeof(std), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, dof = true) = row_std(by, df, cols; dof = dof)
 
-byrow(::typeof(nunique), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, count_missing = true) = row_std(by, df, cols; count_missing = count_missing)
+byrow(::typeof(nunique), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, count_missing = true) = row_nunique(by, df, cols; count_missing = count_missing)
 
 byrow(::typeof(sort), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); kwargs...) = row_sort(df, cols; kwargs...)
 
