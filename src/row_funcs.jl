@@ -317,4 +317,8 @@ byrow(::typeof(stdze), df::AbstractDataFrame, cols = names(df, Union{Missing, Nu
 
 byrow(::typeof(stdze!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_stdze!(df, cols)
 
+byrow(::typeof(mapreduce), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); op = .+, kwargs...) = mapreduce(identity, op, eachcol(df[!, cols]); kwargs...)
+
+byrow(::typeof(reduce), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); op = .+, kwargs...) = reduce(op, eachcol(df[!, cols]); kwargs...)
+
 byrow(f::Function, df::AbstractDataFrame, cols) = f.(eachrow(df[!, cols]))
