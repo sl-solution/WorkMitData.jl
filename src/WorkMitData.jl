@@ -44,6 +44,9 @@ export
 	# row_stdze,
 	# row_sort!,
 	# row_sort,
+	byrow,
+	anymissing,
+	nunique,
 	# from reshape.jl
 	t_function
 

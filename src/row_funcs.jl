@@ -279,3 +279,42 @@ function row_nunique(f, df::AbstractDataFrame, cols = names(df, Union{Missing, N
     end
 end
 row_nunique(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); count_missing = true) = row_nunique(identity, df, cols; count_missing = count_missing)
+
+struct _DUMMY_STRUCT
+end
+
+anymissing(::_DUMMY_STRUCT) = false
+nunique(::_DUMMY_STRUCT) =  false
+stdze!(::_DUMMY_STRUCT) = false
+stdze(::_DUMMY_STRUCT) = false
+
+
+byrow(::typeof(sum), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_sum(by, df, cols)
+
+byrow(::typeof(prod), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_prod(by, df, cols)
+
+byrow(::typeof(count), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = x->true) = row_count(by, df, cols)
+
+byrow(::typeof(anymissing), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_anymissing(df, cols)
+
+byrow(::typeof(mean), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_mean(by, df, cols)
+
+byrow(::typeof(maximum), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_maximum(by, df, cols)
+
+byrow(::typeof(minimum), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_minimum(by, df, cols)
+
+byrow(::typeof(var), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, dof = true) = row_var(by, df, cols; dof = dof)
+
+byrow(::typeof(std), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, dof = true) = row_std(by, df, cols; dof = dof)
+
+byrow(::typeof(nunique), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, count_missing = true) = row_std(by, df, cols; count_missing = count_missing)
+
+byrow(::typeof(sort), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); kwargs...) = row_sort(df, cols; kwargs...)
+
+byrow(::typeof(sort!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); kwargs...) = row_sort!(df, cols; kwargs...)
+
+byrow(::typeof(stdze), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_stdze(df, cols)
+
+byrow(::typeof(stdze!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_stdze!(df, cols)
+
+byrow(f::Function, df::AbstractDataFrame, cols) = f.(eachrow(df[!, cols]))
