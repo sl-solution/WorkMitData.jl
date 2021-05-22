@@ -210,7 +210,18 @@ row_std(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); dof = t
 
 function row_cumsum!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
+    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    T = typeof(f(zeros(CT)[1]))
+    for i in 2:length(colsidx)
+        if eltype(df[!, colsidx[i]]) >: Missing
+            df[!, colsidx[i]] = convert(Vector{Union{Missing, T}}, df[!, colsidx[i]])
+        else
+            df[!, colsidx[i]] = convert(Vector{T}, df[!, colsidx[i]])
+        end
+    end
+
     _op_for_cumsum!(x, y) = y .= _add_sum.(x, f.(y))
+
     CT = eltype(df[!, colsidx[1]])
     T = typeof(f(zeros(CT)[1]))
     if CT >: Missing
@@ -223,7 +234,7 @@ end
 row_cumsum!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumsum!(identity, df, cols)
 
 function row_cumsum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
-    dfcopy = deepcopy(df)
+    dfcopy = copy(df)
     row_cumsum!(f, dfcopy, cols)
     dfcopy
 end
@@ -231,6 +242,15 @@ end
 
 function row_cumprod!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
+    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    T = typeof(f(zeros(CT)[1]))
+    for i in 2:length(colsidx)
+        if eltype(df[!, colsidx[i]]) >: Missing
+            df[!, colsidx[i]] = convert(Vector{Union{Missing, T}}, df[!, colsidx[i]])
+        else
+            df[!, colsidx[i]] = convert(Vector{T}, df[!, colsidx[i]])
+        end
+    end
     _op_for_cumprod!(x, y) = y .= _mul_prod.(x, f.(y))
     CT = eltype(df[!, colsidx[1]])
     T = typeof(f(zeros(CT)[1]))
@@ -244,7 +264,7 @@ end
 row_cumprod!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumprod!(identity, df, cols)
 
 function row_cumprod(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
-    dfcopy = deepcopy(df)
+    dfcopy = copy(df)
     row_cumprod!(f, dfcopy, cols)
     dfcopy
 end
@@ -270,7 +290,7 @@ end
     standardised the values within each row of df[!, cols].
 """
 function row_stdze(df::AbstractDataFrame , cols = names(df, Union{Missing, Number}))
-    dfcopy = deepcopy(df)
+    dfcopy = copy(df)
     row_stdze!(dfcopy, cols)
     dfcopy
 end
@@ -294,7 +314,7 @@ end
     sort `cols` in each row.
 """
 function row_sort(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); kwargs...)
-    dfcopy = deepcopy(df)
+    dfcopy = copy(df)
     row_sort!(dfcopy, cols; kwargs...)
     dfcopy
 end
