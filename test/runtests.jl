@@ -340,3 +340,45 @@ end
     @test names(t_function(df1, 2:4, id = 1, variable_name = "foo")) == ["foo", "x", "y"]
 
 end
+@testset "byrow tests" begin
+    df = DataFrame(g = [1, 1, 1, 2, 2],
+                      x1_int = [0, 0, 1, missing, 2],
+                      x2_int = [3, 2, 1, 3, -2],
+                      x1_float = [1.2, missing, -1.0, 2.3, 10],
+                      x2_float = [missing, missing, 3.0, missing, missing],
+                      x3_float = [missing, missing, -1.4, 3.0, -100.0])
+
+    q1 = byrow(sum, df)
+    @test isequal(q1, [5.2,3.0,3.6,10.3,-88.0])
+
+    q2 = byrow(sum, df, r"x")
+    @test isequal(q2, [4.2,2.0,2.6,8.3,-90.0])
+
+    q3 = byrow(mean, df, r"_float")
+    @test isequal(q3, [1.2,missing,0.20000000000000004,2.65,-45.0])
+
+    q4 = byrow(maximum, df, 2:6)
+    @test isequal(q4, [3.0,2.0,3.0,3.0,10.0])
+
+    q5 = byrow(maximum, df, 2:6, by = abs)
+    @test isequal(q5, [3.0,2.0,3.0,3.0,100.0])
+
+    q6 = byrow(var, df, r"_float")
+    @test isequal(q6, [0.0,missing,5.92,0.24499999999999922,6050.0])
+
+    q7 = byrow(count, df, by = !ismissing)
+    @test isequal(q7, [4,3,6,4,5])
+
+    q8 = byrow(nunique, df, r"int")
+    @test q8 == [2,2,1,2,2]
+
+    q9 = byrow(nunique, df)
+    @test q9 == [5,4,4,4,5]
+
+    q10 = byrow(nunique, df, by = abs)
+    @test q10 == [5,4,3,4,4]
+
+    q11 = byrow(nunique, df, count_missing = false)
+    @test q11 == [4,3,4,3,4]
+end
+

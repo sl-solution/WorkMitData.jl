@@ -67,19 +67,37 @@ function row_count(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Num
 end
 row_count(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_count(x->true, df, cols)
 
-"""
-    row_anymissing(df::AbstractDataFrame[, cols])
-    returns `true` or `false` wheather the row contains `missing` or no `missing`, respectively.
-"""
-function row_anymissing(df::AbstractDataFrame, cols = :)
-    colsidx = DataFrames.index(df)[cols]
-    # sel_colsidx = findall(x-> x >: Missing, eltype.(eachcol(df)[colsidx]))
-    _op_bool_add(x::Bool,y::Bool) = x || y ? true : false
-    op_for_anymissing!(x,y) = x .= _op_bool_add.(x, ismissing.(y))
-    # mapreduce(identity, op_for_anymissing!, eachcol(df)[colsidx[sel_colsidx]], init = zeros(Bool, nrow(df)))
-    mapreduce(identity, op_for_anymissing!, view(getfield(df, :columns),colsidx), init = zeros(Bool, nrow(df)))
-end
+# """
+#     row_anymissing(df::AbstractDataFrame[, cols])
+#     returns `true` or `false` wheather the row contains `missing` or no `missing`, respectively.
+# """
+# function row_anymissing(df::AbstractDataFrame, cols = :)
+#     colsidx = DataFrames.index(df)[cols]
+#     # sel_colsidx = findall(x-> x >: Missing, eltype.(eachcol(df)[colsidx]))
+#     _op_bool_add(x::Bool,y::Bool) = x || y ? true : false
+#     op_for_anymissing!(x,y) = x .= _op_bool_add.(x, _bool(ismissing).(y))
+#     # mapreduce(identity, op_for_anymissing!, eachcol(df)[colsidx[sel_colsidx]], init = zeros(Bool, nrow(df)))
+#     mapreduce(identity, op_for_anymissing!, view(getfield(df, :columns),colsidx), init = zeros(Bool, nrow(df)))
+# end
 
+
+function row_any(f, df::AbstractDataFrame, cols = :)
+    colsidx = DataFrames.index(df)[cols]
+    _op_bool_add(x::Bool,y::Bool) = x || y ? true : false
+    op_for_any!(x,y) = x .= _op_bool_add.(x, _bool(f).(y))
+    # mapreduce(identity, op_for_anymissing!, eachcol(df)[colsidx[sel_colsidx]], init = zeros(Bool, nrow(df)))
+    mapreduce(identity, op_for_any!, view(getfield(df, :columns),colsidx), init = zeros(Bool, nrow(df)))
+end
+row_any(df::AbstractDataFrame, cols = :) = row_any(x->true, df, cols)
+
+function row_all(f, df::AbstractDataFrame, cols = :)
+    colsidx = DataFrames.index(df)[cols]
+    _op_bool_mult(x::Bool,y::Bool) = x && y ? true : false
+    op_for_all!(x,y) = x .= _op_bool_mult.(x, _bool(f).(y))
+    # mapreduce(identity, op_for_anymissing!, eachcol(df)[colsidx[sel_colsidx]], init = zeros(Bool, nrow(df)))
+    mapreduce(identity, op_for_all!, view(getfield(df, :columns),colsidx), init = ones(Bool, nrow(df)))
+end
+row_all(df::AbstractDataFrame, cols = :) = row_all(x->true, df, cols)
 
 """
     row_mean([f = identity,] df::AbstractDataFrame[, cols])
@@ -190,6 +208,48 @@ function row_std(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Numbe
 end
 row_std(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); dof = true) = row_std(identity, df, cols, dof = dof)
 
+function row_cumsum!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+    colsidx = DataFrames.index(df)[cols]
+    _op_for_cumsum!(x, y) = y .= _add_sum.(x, f.(y))
+    CT = eltype(df[!, colsidx[1]])
+    T = typeof(f(zeros(CT)[1]))
+    if CT >: Missing
+        T = Union{Missing, T}
+    end
+    init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : zero(T))
+    mapreduce(identity, _op_for_cumsum!, view(getfield(df, :columns),colsidx), init = init0)
+    nothing
+end
+row_cumsum!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumsum!(identity, df, cols)
+
+function row_cumsum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+    dfcopy = deepcopy(df)
+    row_cumsum!(f, dfcopy, cols)
+    dfcopy
+end
+
+
+function row_cumprod!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+    colsidx = DataFrames.index(df)[cols]
+    _op_for_cumprod!(x, y) = y .= _mul_prod.(x, f.(y))
+    CT = eltype(df[!, colsidx[1]])
+    T = typeof(f(zeros(CT)[1]))
+    if CT >: Missing
+        T = Union{Missing, T}
+    end
+    init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : one(T))
+    mapreduce(identity, _op_for_cumprod!, view(getfield(df, :columns),colsidx), init = init0)
+    nothing
+end
+row_cumprod!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumprod!(identity, df, cols)
+
+function row_cumprod(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+    dfcopy = deepcopy(df)
+    row_cumprod!(f, dfcopy, cols)
+    dfcopy
+end
+
+
 """
     row_stdze!(df::AbstractDataFrame[, cols])
     standardised the values within each row of df[!, cols], and replaces the old values.
@@ -275,7 +335,7 @@ function row_nunique(f, df::AbstractDataFrame, cols = names(df, Union{Missing, N
     if count_missing
         return init0
     else
-        return init0 .- row_anymissing(df, cols)
+        return init0 .- row_any(ismissing, df, cols)
     end
 end
 row_nunique(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); count_missing = true) = row_nunique(identity, df, cols; count_missing = count_missing)
@@ -283,7 +343,7 @@ row_nunique(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); cou
 struct _DUMMY_STRUCT
 end
 
-anymissing(::_DUMMY_STRUCT) = false
+# anymissing(::_DUMMY_STRUCT) = false
 nunique(::_DUMMY_STRUCT) =  false
 stdze!(::_DUMMY_STRUCT) = false
 stdze(::_DUMMY_STRUCT) = false
@@ -295,7 +355,11 @@ byrow(::typeof(prod), df::AbstractDataFrame, cols = names(df, Union{Missing, Num
 
 byrow(::typeof(count), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = x->true) = row_count(by, df, cols)
 
-byrow(::typeof(anymissing), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_anymissing(df, cols)
+# byrow(::typeof(anymissing), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_anymissing(df, cols)
+
+byrow(::typeof(any), df::AbstractDataFrame, cols = :; by = x->true) = row_any(by, df, cols)
+
+byrow(::typeof(all), df::AbstractDataFrame, cols = :; by = x->true) = row_all(by, df, cols)
 
 byrow(::typeof(mean), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_mean(by, df, cols)
 
@@ -308,6 +372,14 @@ byrow(::typeof(var), df::AbstractDataFrame, cols = names(df, Union{Missing, Numb
 byrow(::typeof(std), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, dof = true) = row_std(by, df, cols; dof = dof)
 
 byrow(::typeof(nunique), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, count_missing = true) = row_nunique(by, df, cols; count_missing = count_missing)
+
+byrow(::typeof(cumsum), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_cumsum(by, df, cols)
+
+byrow(::typeof(cumprod!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_cumprod!(by, df, cols)
+
+byrow(::typeof(cumprod), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_cumprod(by, df, cols)
+
+byrow(::typeof(cumsum!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_cumsum!(by, df, cols)
 
 byrow(::typeof(sort), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); kwargs...) = row_sort(df, cols; kwargs...)
 
