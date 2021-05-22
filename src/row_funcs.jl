@@ -208,66 +208,50 @@ function row_std(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Numbe
 end
 row_std(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); dof = true) = row_std(identity, df, cols, dof = dof)
 
-function row_cumsum!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+function row_cumsum!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
-    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
-    T = typeof(f(zeros(CT)[1]))
-    for i in 2:length(colsidx)
-        if eltype(df[!, colsidx[i]]) >: Missing
-            df[!, colsidx[i]] = convert(Vector{Union{Missing, T}}, f.(df[!, colsidx[i]]))
+    T = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    for i in colsidx
+        if eltype(df[!, i]) >: Missing
+            df[!, i] = convert(Vector{Union{Missing, T}}, df[!, i])
         else
-            df[!, colsidx[i]] = convert(Vector{T}, f.(df[!, colsidx[i]]))
+            df[!, i] = convert(Vector{T}, df[!, i])
         end
     end
-
     _op_for_cumsum!(x, y) = y .= _add_sum.(x, y)
-
-    CT = eltype(df[!, colsidx[1]])
-    T = typeof(f(zeros(CT)[1]))
-    if CT >: Missing
-        T = Union{Missing, T}
-    end
     init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : zero(T))
-    df[!, colsidx[1]] = f.(df[!, colsidx[1]])
     mapreduce(identity, _op_for_cumsum!, view(getfield(df, :columns),colsidx), init = init0)
     nothing
 end
-row_cumsum!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumsum!(identity, df, cols)
+# row_cumsum!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumsum!(identity, df, cols)
 
-function row_cumsum(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+function row_cumsum(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     dfcopy = copy(df)
-    row_cumsum!(f, dfcopy, cols)
+    row_cumsum!(dfcopy, cols)
     dfcopy
 end
 
 
-function row_cumprod!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+function row_cumprod!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     colsidx = DataFrames.index(df)[cols]
-    CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
-    T = typeof(f(zeros(CT)[1]))
-    for i in 2:length(colsidx)
-        if eltype(df[!, colsidx[i]]) >: Missing
-            df[!, colsidx[i]] = convert(Vector{Union{Missing, T}}, f.(df[!, colsidx[i]]))
+    colsidx = DataFrames.index(df)[cols]
+    T = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
+    for i in colsidx
+        if eltype(df[!, i]) >: Missing
+            df[!, i] = convert(Vector{Union{Missing, T}}, df[!, i])
         else
-            df[!, colsidx[i]] = convert(Vector{T}, f.(df[!, colsidx[i]]))
+            df[!, i] = convert(Vector{T}, df[!, i])
         end
     end
     _op_for_cumprod!(x, y) = y .= _mul_prod.(x, y)
-    CT = eltype(df[!, colsidx[1]])
-    T = typeof(f(zeros(CT)[1]))
-    if CT >: Missing
-        T = Union{Missing, T}
-    end
     init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : one(T))
-    df[!, colsidx[1]] = f.(df[!, colsidx[1]])
     mapreduce(identity, _op_for_cumprod!, view(getfield(df, :columns),colsidx), init = init0)
     nothing
 end
-row_cumprod!(df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumprod!(identity, df, cols)
 
-function row_cumprod(f, df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
+function row_cumprod(df::AbstractDataFrame, cols = names(df, Union{Missing, Number}))
     dfcopy = copy(df)
-    row_cumprod!(f, dfcopy, cols)
+    row_cumprod!(dfcopy, cols)
     dfcopy
 end
 
@@ -395,13 +379,13 @@ byrow(::typeof(std), df::AbstractDataFrame, cols = names(df, Union{Missing, Numb
 
 byrow(::typeof(nunique), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity, count_missing = true) = row_nunique(by, df, cols; count_missing = count_missing)
 
-byrow(::typeof(cumsum), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_cumsum(by, df, cols)
+byrow(::typeof(cumsum), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumsum(df, cols)
 
-byrow(::typeof(cumprod!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_cumprod!(by, df, cols)
+byrow(::typeof(cumprod!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumprod!(df, cols)
 
-byrow(::typeof(cumprod), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_cumprod(by, df, cols)
+byrow(::typeof(cumprod), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumprod(df, cols)
 
-byrow(::typeof(cumsum!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); by = identity) = row_cumsum!(by, df, cols)
+byrow(::typeof(cumsum!), df::AbstractDataFrame, cols = names(df, Union{Missing, Number})) = row_cumsum!(df, cols)
 
 byrow(::typeof(sort), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); kwargs...) = row_sort(df, cols; kwargs...)
 
