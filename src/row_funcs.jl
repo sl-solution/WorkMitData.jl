@@ -212,15 +212,15 @@ function row_cumsum!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, N
     colsidx = DataFrames.index(df)[cols]
     CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
     T = typeof(f(zeros(CT)[1]))
-    for i in 2:length(colsidx)
+    for i in 1:length(colsidx)
         if eltype(df[!, colsidx[i]]) >: Missing
-            df[!, colsidx[i]] = convert(Vector{Union{Missing, T}}, df[!, colsidx[i]])
+            df[!, colsidx[i]] = convert(Vector{Union{Missing, T}}, f.(df[!, colsidx[i]]))
         else
-            df[!, colsidx[i]] = convert(Vector{T}, df[!, colsidx[i]])
+            df[!, colsidx[i]] = convert(Vector{T}, f.(df[!, colsidx[i]]))
         end
     end
 
-    _op_for_cumsum!(x, y) = y .= _add_sum.(x, f.(y))
+    _op_for_cumsum!(x, y) = y .= _add_sum.(x, y)
 
     CT = eltype(df[!, colsidx[1]])
     T = typeof(f(zeros(CT)[1]))
@@ -244,14 +244,14 @@ function row_cumprod!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, 
     colsidx = DataFrames.index(df)[cols]
     CT = mapreduce(eltype, promote_type, view(getfield(df, :columns),colsidx))
     T = typeof(f(zeros(CT)[1]))
-    for i in 2:length(colsidx)
+    for i in 1:length(colsidx)
         if eltype(df[!, colsidx[i]]) >: Missing
-            df[!, colsidx[i]] = convert(Vector{Union{Missing, T}}, df[!, colsidx[i]])
+            df[!, colsidx[i]] = convert(Vector{Union{Missing, T}}, f.(df[!, colsidx[i]]))
         else
-            df[!, colsidx[i]] = convert(Vector{T}, df[!, colsidx[i]])
+            df[!, colsidx[i]] = convert(Vector{T}, f.(df[!, colsidx[i]]))
         end
     end
-    _op_for_cumprod!(x, y) = y .= _mul_prod.(x, f.(y))
+    _op_for_cumprod!(x, y) = y .= _mul_prod.(x, y)
     CT = eltype(df[!, colsidx[1]])
     T = typeof(f(zeros(CT)[1]))
     if CT >: Missing
