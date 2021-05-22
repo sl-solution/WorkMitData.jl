@@ -228,7 +228,7 @@ function row_cumsum!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, N
         T = Union{Missing, T}
     end
     init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : zero(T))
-    df[!, colsidx[1]] = f.(df[!, colsidx])
+    df[!, colsidx[1]] = f.(df[!, colsidx[1]])
     mapreduce(identity, _op_for_cumsum!, view(getfield(df, :columns),colsidx), init = init0)
     nothing
 end
@@ -259,7 +259,7 @@ function row_cumprod!(f, df::AbstractDataFrame, cols = names(df, Union{Missing, 
         T = Union{Missing, T}
     end
     init0 = fill!(Vector{T}(undef, nrow(df)), T >: Missing ? missing : one(T))
-    df[!, colsidx[1]] = f.(df[!, colsidx])
+    df[!, colsidx[1]] = f.(df[!, colsidx[1]])
     mapreduce(identity, _op_for_cumprod!, view(getfield(df, :columns),colsidx), init = init0)
     nothing
 end
