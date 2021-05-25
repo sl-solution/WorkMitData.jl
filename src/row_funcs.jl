@@ -399,4 +399,8 @@ byrow(::typeof(mapreduce), df::AbstractDataFrame, cols = names(df, Union{Missing
 
 byrow(::typeof(reduce), df::AbstractDataFrame, cols = names(df, Union{Missing, Number}); op = .+, kwargs...) = reduce(op, eachcol(df[!, cols]); kwargs...)
 
-byrow(f::Function, df::AbstractDataFrame, cols) = f.(eachrow(df[!, cols]))
+function byrow(f::Function, df::AbstractDataFrame, col::DataFrames.ColumnIndex; kwargs...)
+    _temp_fun(x) = f(x; kwargs...)
+    _temp_fun.(df[!, col])
+end
+byrow(f::Function, df::AbstractDataFrame, cols; kwargs...) = f.(eachrow(df[!, cols]); kwargs...)
